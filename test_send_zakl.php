@@ -1,9 +1,11 @@
 <?php
 include_once('upload_zakl_cred.php');
 
-$file_zakl_test = file_get_contents('zakl_test_in.pdf');
-$zakl_body = $file_zakl_test;
-$zakl_body = file_get_contents('zakl_test_base64.txt');
+// $file_zakl_test = file_get_contents('zakl_test_in.pdf');
+// $zakl_body = $file_zakl_test;
+// $zakl_body = file_get_contents('zakl_test_base64.txt');
+// $zakl_body = file_get_contents('test_txt.txt');
+$zakl_body = file_get_contents('test.pdf');
 
 function clean64Encode($input_str) {
     $clean64Str = '';
@@ -24,7 +26,7 @@ function clean64Encode($input_str) {
     return $clean64Str;
 }
 
-$post_str = 'KARTA=1001081597&DAT='.rawurlencode('2023-05-30 07:32:25').'&NAME=2717.'.rawurlencode('МРТ колінного суглоба.pdf').'&DOC='.$zakl_body;
+$post_str = 'KARTA=1001081597&DAT='.rawurlencode('2023-05-30 07:32:25').'&NAME=1122.'.rawurlencode('МРТ колінного суглоба1.pdf').'&DOC='.base64_encode($zakl_body);
 
 $curl = curl_init();
 curl_setopt_array($curl, array(
@@ -50,3 +52,4 @@ echo $response.PHP_EOL;
 
 // file_put_contents('zakl_php_base64.txt', clean64Encode($zakl_body));
 // file_put_contents('zakl_test_out.pdf', base64_decode(file_get_contents('zakl_php_base64.txt')));
+// echo $post_str.PHP_EOL;
