@@ -23,6 +23,8 @@ $runningStatusHandle = fopen($runningStatusFile, "w");
 fflush($runningStatusHandle);
 fclose($runningStatusHandle);
 
+$file_zakl_test = file_get_contents('zakl_test_in.pdf');
+
 $parSQL = "SELECT z_zakl.ID, pers.REGNUM, z_zakl.CONCL_2_PDF AS concl_br, z_zakl.OKONCH_DT, tovar.ARTIKUL, tovar.NAZ
 FROM personareg AS pers, zakazsp_zakl AS z_zakl, tovar
 WHERE z_zakl.ID>=$lastID
@@ -35,7 +37,12 @@ $zakl_arr = $conn->Execute($parSQL) or die  ("sql error: $parSQL\n<br>");
 while(!$zakl_arr->EOF) {
     $log_str = "";
     $naz_zakl = mb_convert_encoding($zakl_arr->fields['NAZ'], 'UTF-8');
+    $zakl_body = gzuncompress(base64_decode($zakl_arr->fields['concl_br']));
+    $zakl_body = $file_zakl_test;
+
     $log_str = date('Y-m-d H:i:s').",ID:".$zakl_arr->fields['ID'].",KARTA:".$zakl_arr->fields['REGNUM'].",DATE_ZAKL:". $zakl_arr->fields['OKONCH_DT'].",ART:".$zakl_arr->fields['ARTIKUL'].",NAZ:".$naz_zakl." -> uploaded\n";
+
+    $post_str = 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode($zakl_arr->fields['NAZ']).'.pdf'.'&DOC='.base64_encode($zakl_body);
 
     $curl = curl_init();
     curl_setopt_array($curl, array(
@@ -47,11 +54,13 @@ while(!$zakl_arr->EOF) {
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         CURLOPT_CUSTOMREQUEST => 'POST',
-        // CURLOPT_POSTFIELDS => 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode($zakl_arr->fields['NAZ']).'.pdf'.'&DOC='.$zakl_arr->fields['concl_br'],
-        CURLOPT_POSTFIELDS => 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.'999.Тестовое заключение.pdf'.'&DOC='.base64_encode(gzuncompress(base64_decode($zakl_arr->fields['concl_br']))),
+        CURLOPT_POSTFIELDS => $post_str,
+        // CURLOPT_POSTFIELDS => 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.'999.Тестовое заключение.pdf'.'&DOC='.base64_encode(gzuncompress(base64_decode($zakl_arr->fields['concl_br']))),
         CURLOPT_HTTPHEADER => array(
             'Content-Type: application/x-www-form-urlencoded',
-            'Authorization: Basic '.AuthorizationDigest
+            'Authorization: Basic ' . AuthorizationDigest,
+            // 'Content-Length: ' . 200000
+            // 'Cookie: PHPSESSID=m2o9nr8hq4lhp7798i5i9oqpb2'
         ),
     ));
     $response = curl_exec($curl);
@@ -59,7 +68,7 @@ while(!$zakl_arr->EOF) {
     curl_close($curl);
     echo $response.PHP_EOL;
 
-    file_put_contents('test_zakl.pdf', gzuncompress(base64_decode($zakl_arr->fields['concl_br'])));
+    file_put_contents('test_zakl.pdf', $zakl_body);
     sleep(5);
     fwrite($logHandle, $log_str);
     fflush($logHandle);
