@@ -17,14 +17,16 @@ $ADODB_FETCH_MODE = ADODB_FETCH_ASSOC;
 // AND z_zakl.OKONCH_DT BETWEEN '2023-01-01 00:00:00' AND '2023-12-31 23:59:59'
 // pers.REGNUM=1001081597
 $lastID = 0;
-$uploadConcl = 2;
+$uploadConcl = 20;
 $delay_next = 4;
+$hour_stop = 23;
+
+$currentDateObj = date_create();
+
+date_time_set($currentDateObj, $hour_stop, 0);
+$stopDateTime = date_timestamp_get($currentDateObj);
 
 $ini_arr = parse_ini_file($idProcessFile);
-
-if ($ini_arr && intval($ini_arr['lastID']) && intval($ini_arr['lastID']) > 0) {
-    $lastID = intval($ini_arr['lastID']);
-}
 
 $options = getopt("s:u:");
 if (array_key_exists('s', $options) && $options['s']) {
@@ -39,12 +41,16 @@ if (array_key_exists('u', $options) && $options['u']) {
     $uploadConcl = filter_var($options['u'], FILTER_VALIDATE_INT, [
         "options" => [
             "min_range" => 1, 
-            "max_range" => 1000, 
+            "max_range" => 10000, 
             'default' => $uploadConcl
         ]]);
 }
 
-$stopID = $lastID + $uploadConcl;
+if ($ini_arr && intval($ini_arr['lastID']) && intval($ini_arr['lastID']) > 0) {
+    $lastID = intval($ini_arr['lastID']);
+}
+
+// $stopID = $lastID + $uploadConcl;
 
 $logHandle = fopen($logFileName, "a+");
 $failedLogHandle = fopen($failedLogFileName, "a+");
@@ -54,10 +60,21 @@ $runningStatusHandle = fopen($runningStatusFile, "w");
 fflush($runningStatusHandle);
 fclose($runningStatusHandle);
 
-while($lastID < $stopID) {
+// while($lastID < $stopID) {
+while(true) {
     $cause_stop = 'hmm...';
-    if (!file_exists($runningStatusFile) && ($cause_stop = 'external interrupt')) {
-            
+    $current_ts = time();
+    // $current_hour = intval(date('H'));
+
+    // if (!file_exists($runningStatusFile) && ($cause_stop = 'external interrupt')) {
+    if ((($stopDateTime - time() <= 0) && ($cause_stop = 'time')) || 
+    ((!file_exists($runningStatusFile)) && ($cause_stop = 'external interrupt'))) {       
+        $log_str = date('Y-m-d H:i:s').",Stopped by $cause_stop" . PHP_EOL;
+        fwrite($logHandle, $log_str);
+        fflush($logHandle);
+        break;
+    }
+    if ($lastID < 78000 && ($cause_stop = 'too small ID')) {
         $log_str = date('Y-m-d H:i:s').",Stopped by $cause_stop" . PHP_EOL;
         fwrite($logHandle, $log_str);
         fflush($logHandle);
