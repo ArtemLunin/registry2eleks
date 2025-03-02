@@ -20,6 +20,7 @@ $lastID = 0;
 $uploadConcl = 20;
 $delay_next = 4;
 $hour_stop = 23;
+$startID = $stopID = 0;
 
 $currentDateObj = date_create();
 
@@ -28,13 +29,13 @@ $stopDateTime = date_timestamp_get($currentDateObj);
 
 $ini_arr = parse_ini_file($idProcessFile);
 
-$options = getopt("s:u:");
+$options = getopt("s:u:e:");
 if (array_key_exists('s', $options) && $options['s']) {
-    $lastID = filter_var($options['s'], FILTER_VALIDATE_INT, [
+    $startID = filter_var($options['s'], FILTER_VALIDATE_INT, [
         "options" => [
             "min_range" => 0, 
             "max_range" => 1000000, 
-            'default' => $lastID
+            'default' => $startID
         ]]);
 }
 if (array_key_exists('u', $options) && $options['u']) {
@@ -45,12 +46,18 @@ if (array_key_exists('u', $options) && $options['u']) {
             'default' => $uploadConcl
         ]]);
 }
+if (array_key_exists('e', $options) && $options['e']) {
+    $stopID = filter_var($options['e'], FILTER_VALIDATE_INT, [
+        "options" => [
+            "min_range" => 1, 
+            "max_range" => 1000000, 
+            'default' => 0
+        ]]);
+}
 
 if ($ini_arr && intval($ini_arr['lastID']) && intval($ini_arr['lastID']) > 0) {
     $lastID = intval($ini_arr['lastID']);
 }
-
-// $stopID = $lastID + $uploadConcl;
 
 $logHandle = fopen($logFileName, "a+");
 $failedLogHandle = fopen($failedLogFileName, "a+");
@@ -59,6 +66,14 @@ $iniHandle = fopen($idProcessFile, "w");
 $runningStatusHandle = fopen($runningStatusFile, "w");
 fflush($runningStatusHandle);
 fclose($runningStatusHandle);
+
+
+if ($startID !== 0) {
+    $lastID = $startID;
+    $log_str = date('Y-m-d H:i:s').",Start ID from parameters: $cause_stop" . PHP_EOL;
+    fwrite($logHandle, $log_str);
+    fflush($logHandle);
+}
 
 // while($lastID < $stopID) {
 while(true) {
@@ -74,7 +89,13 @@ while(true) {
         fflush($logHandle);
         break;
     }
-    if ($lastID < 78000 && ($cause_stop = 'too small ID')) {
+    if ($lastID < 240000 && ($cause_stop = 'too small ID')) {
+        $log_str = date('Y-m-d H:i:s').",Stopped by $cause_stop" . PHP_EOL;
+        fwrite($logHandle, $log_str);
+        fflush($logHandle);
+        break;
+    }
+    if ($startID !== 0 && $lastID >= $stopID  && ($cause_stop = 'end diap')) {
         $log_str = date('Y-m-d H:i:s').",Stopped by $cause_stop" . PHP_EOL;
         fwrite($logHandle, $log_str);
         fflush($logHandle);

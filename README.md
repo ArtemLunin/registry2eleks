@@ -14,5 +14,7 @@ Fix conclusions in Registry and upload conclusions to Eleks
 ## Stored login and password for Basic Auth
 ### upload_zakl_cred.php
 
-## Upload conclusions
+## Upload conclusions. Remove reg_upload_in_process.txt file if need to stop
 `php upload_zakl.php`
+### Upload conclusions from start ro end ID
+`php upload_zakl.php -s 1001 -e 1002`
