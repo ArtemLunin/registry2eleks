@@ -21,6 +21,7 @@ $uploadConcl = 20;
 $delay_next = 4;
 $hour_stop = 23;
 $startID = $stopID = 0;
+$maxIDFinished = 1038611;
 
 $currentDateObj = date_create();
 
@@ -76,7 +77,7 @@ if ($startID !== 0) {
 }
 
 // while($lastID < $stopID) {
-while(true) {
+while($lastID <= $maxIDFinished) {
     $cause_stop = 'hmm...';
     $current_ts = time();
     // $current_hour = intval(date('H'));
