@@ -21,7 +21,9 @@ $uploadConcl = 20;
 $delay_next = 4;
 $hour_stop = 23;
 $startID = $stopID = 0;
-$maxIDFinished = 1038611;
+$maxIDFinished = 0;
+
+$max_length_filename = 142;
 
 $currentDateObj = date_create();
 
@@ -69,20 +71,31 @@ fflush($runningStatusHandle);
 fclose($runningStatusHandle);
 
 
+$SQLMAXID= "SELECT MAX(ID) AS MAXID FROM ZAKAZSP_ZAKL WHERE OKONCH=1";
+$id_arr = $conn->Execute($SQLMAXID) or die  ("sql error: $SQLMAXID\n<br>");
+while(!$id_arr->EOF) {
+    $maxIDFinished = intval($id_arr->fields['MAXID']);
+    $id_arr->MoveNext();
+}
+$cause_stop = $maxIDFinished;
+$log_str = date('Y-m-d H:i:s').",Detected MAXID: $cause_stop" . PHP_EOL;
+fwrite($logHandle, $log_str);
+fflush($logHandle);
+
 if ($startID !== 0) {
-    $lastID = $startID;
+    $cause_stop = $lastID = $startID;
     $log_str = date('Y-m-d H:i:s').",Start ID from parameters: $cause_stop" . PHP_EOL;
     fwrite($logHandle, $log_str);
     fflush($logHandle);
 }
 
+$replaced_chars = ["\\","/","+",",","."];
+
 // while($lastID < $stopID) {
 while($lastID <= $maxIDFinished) {
     $cause_stop = 'hmm...';
     $current_ts = time();
-    // $current_hour = intval(date('H'));
 
-    // if (!file_exists($runningStatusFile) && ($cause_stop = 'external interrupt')) {
     if ((($stopDateTime - time() <= 0) && ($cause_stop = 'time')) || 
     ((!file_exists($runningStatusFile)) && ($cause_stop = 'external interrupt'))) {       
         $log_str = date('Y-m-d H:i:s').",Stopped by $cause_stop" . PHP_EOL;
@@ -96,7 +109,7 @@ while($lastID <= $maxIDFinished) {
         fflush($logHandle);
         break;
     }
-    if ($startID !== 0 && $lastID >= $stopID  && ($cause_stop = 'end diap')) {
+    if ($startID !== 0 && $lastID > $stopID  && ($cause_stop = 'end diap')) {
         $log_str = date('Y-m-d H:i:s').",Stopped by $cause_stop" . PHP_EOL;
         fwrite($logHandle, $log_str);
         fflush($logHandle);
@@ -113,7 +126,7 @@ while($lastID <= $maxIDFinished) {
 
         $log_str = date('Y-m-d H:i:s').",ID:".$zakl_arr->fields['ID'].",KARTA:".$zakl_arr->fields['REGNUM'].",DATE_ZAKL:". $zakl_arr->fields['OKONCH_DT'].",ART:".$zakl_arr->fields['ARTIKUL'].",NAZ:".$naz_zakl." -> uploaded" . PHP_EOL;
 
-        $post_str = 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode($zakl_arr->fields['NAZ']).'.pdf'.'&DOC='.rawurlencode(base64_encode($zakl_body));
+        $post_str = 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode(substr(str_replace($replaced_chars, "_", $zakl_arr->fields['NAZ']), 0, $max_length_filename)).'.pdf'.'&DOC='.rawurlencode(base64_encode($zakl_body));
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
