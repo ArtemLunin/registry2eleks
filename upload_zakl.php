@@ -18,7 +18,7 @@ $ADODB_FETCH_MODE = ADODB_FETCH_ASSOC;
 // pers.REGNUM=1001081597
 $lastID = 0;
 $uploadConcl = 20;
-$delay_next = 4;
+$delay_next = 2;
 $hour_stop = 23;
 $startID = $stopID = 0;
 $maxIDFinished = 0;
@@ -53,7 +53,7 @@ if (array_key_exists('e', $options) && $options['e']) {
     $stopID = filter_var($options['e'], FILTER_VALIDATE_INT, [
         "options" => [
             "min_range" => 1, 
-            "max_range" => 1000000, 
+            "max_range" => 2000000, 
             'default' => 0
         ]]);
 }
@@ -78,7 +78,7 @@ while(!$id_arr->EOF) {
     $id_arr->MoveNext();
 }
 $cause_stop = $maxIDFinished;
-$log_str = date('Y-m-d H:i:s').",Detected MAXID: $cause_stop" . PHP_EOL;
+$log_str = date('Y-m-d H:i:s').",Detected MAXID: $cause_stop,lastID from ini: $lastID" . PHP_EOL;
 fwrite($logHandle, $log_str);
 fflush($logHandle);
 
@@ -103,7 +103,7 @@ while($lastID <= $maxIDFinished) {
         fflush($logHandle);
         break;
     }
-    if ($lastID < 240000 && ($cause_stop = 'too small ID')) {
+    if ($lastID < 1000 && ($cause_stop = 'too small ID')) {
         $log_str = date('Y-m-d H:i:s').",Stopped by $cause_stop" . PHP_EOL;
         fwrite($logHandle, $log_str);
         fflush($logHandle);
@@ -124,9 +124,11 @@ while($lastID <= $maxIDFinished) {
         $naz_zakl = mb_convert_encoding($zakl_arr->fields['NAZ'], 'UTF-8');
         $zakl_body = gzuncompress(base64_decode($zakl_arr->fields['concl_br']));
 
+        // $test_pdf = file_put_contents('test_pdf.pdf', $zakl_body);
+
         $log_str = date('Y-m-d H:i:s').",ID:".$zakl_arr->fields['ID'].",KARTA:".$zakl_arr->fields['REGNUM'].",DATE_ZAKL:". $zakl_arr->fields['OKONCH_DT'].",ART:".$zakl_arr->fields['ARTIKUL'].",NAZ:".$naz_zakl." -> uploaded" . PHP_EOL;
 
-        $post_str = 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode(substr(str_replace($replaced_chars, "_", $zakl_arr->fields['NAZ']), 0, $max_length_filename)).'.pdf'.'&DOC='.rawurlencode(base64_encode($zakl_body));
+        $post_str = 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode(mb_substr(str_replace($replaced_chars, "_", $zakl_arr->fields['NAZ']), 0, $max_length_filename)).'.pdf'.'&DOC='.rawurlencode(base64_encode($zakl_body));
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
@@ -148,12 +150,13 @@ while($lastID <= $maxIDFinished) {
         $response = curl_exec($curl);
         $mess = curl_error($curl);
         curl_close($curl);
-        // echo iconv('cp1251','utf-8',$response).PHP_EOL;
+        $response = iconv('cp1251','utf-8',$response) . PHP_EOL;
 
-        if($mess) {
-            fwrite($failedLogHandle, "error:" . $mess . $log_str);
-            fflush($failedLogHandle);
-        } else {
+        if (strpos($response, 'Документ успішно створено') === false) {
+            fwrite($failedLogHandle, "error for ID $lastID:" . PHP_EOL . $response . PHP_EOL . $log_str);
+            fflush($failedLogHandle); 
+        }
+        else {
             fwrite($logHandle, $log_str);
             fflush($logHandle);
         }
