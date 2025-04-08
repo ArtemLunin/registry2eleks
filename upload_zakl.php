@@ -37,7 +37,7 @@ if (array_key_exists('s', $options) && $options['s']) {
     $startID = filter_var($options['s'], FILTER_VALIDATE_INT, [
         "options" => [
             "min_range" => 0, 
-            "max_range" => 1000000, 
+            "max_range" => 2000000, 
             'default' => $startID
         ]]);
 }
@@ -89,7 +89,7 @@ if ($startID !== 0) {
     fflush($logHandle);
 }
 
-$replaced_chars = ["\\","/","+",",","."];
+$replaced_chars = ["\\","/","+",",",".", "*"];
 
 // while($lastID < $stopID) {
 while($lastID <= $maxIDFinished) {
