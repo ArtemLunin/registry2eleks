@@ -16,12 +16,15 @@ $ADODB_FETCH_MODE = ADODB_FETCH_ASSOC;
 
 // AND z_zakl.OKONCH_DT BETWEEN '2023-01-01 00:00:00' AND '2023-12-31 23:59:59'
 // pers.REGNUM=1001081597
-$lastID = 0;
+$lastID = $fixedID = 0;
 $uploadConcl = 20;
 $delay_next = 2;
 $hour_stop = 23;
 $startID = $stopID = 0;
 $maxIDFinished = 0;
+$storeID = true;
+$html = false;
+$zakl_ext = '.pdf';
 
 $max_length_filename = 142;
 
@@ -32,7 +35,7 @@ $stopDateTime = date_timestamp_get($currentDateObj);
 
 $ini_arr = parse_ini_file($idProcessFile);
 
-$options = getopt("s:u:e:");
+$options = getopt("s:u:e:h");
 if (array_key_exists('s', $options) && $options['s']) {
     $startID = filter_var($options['s'], FILTER_VALIDATE_INT, [
         "options" => [
@@ -56,10 +59,18 @@ if (array_key_exists('e', $options) && $options['e']) {
             "max_range" => 2000000, 
             'default' => 0
         ]]);
+} elseif ($startID !== 0) {
+    $stopID = $startID;
+    $storeID = false;
+}
+if (array_key_exists('h', $options)) {
+    $html = true;
+    $zakl_ext = '.html';
 }
 
 if ($ini_arr && intval($ini_arr['lastID']) && intval($ini_arr['lastID']) > 0) {
     $lastID = intval($ini_arr['lastID']);
+    $fixedID = $lastID;
 }
 
 $logHandle = fopen($logFileName, "a+");
@@ -116,7 +127,7 @@ while($lastID <= $maxIDFinished) {
         break;
     }
 
-    $parSQL = "SELECT z_zakl.ID, pers.REGNUM, z_zakl.CONCL_2_PDF AS concl_br, z_zakl.OKONCH_DT, tovar.ARTIKUL, tovar.NAZ FROM personareg AS pers, zakazsp_zakl AS z_zakl, tovar WHERE z_zakl.ID>=$lastID AND z_zakl.OKONCH=1 AND z_zakl.PERSONA=pers.PERSONA AND z_zakl.TOVAR=tovar.ID ORDER BY z_zakl.ID LIMIT 1";
+    $parSQL = "SELECT z_zakl.ID, pers.REGNUM, z_zakl.CONCL_1_HTM AS concl_html, z_zakl.CONCL_2_PDF AS concl_br, z_zakl.OKONCH_DT, tovar.ARTIKUL, tovar.NAZ FROM personareg AS pers, zakazsp_zakl AS z_zakl, tovar WHERE z_zakl.ID>=$lastID AND z_zakl.OKONCH=1 AND z_zakl.PERSONA=pers.PERSONA AND z_zakl.TOVAR=tovar.ID ORDER BY z_zakl.ID LIMIT 1";
 
     $zakl_arr = $conn->Execute($parSQL) or die  ("sql error: $parSQL\n<br>");
 
@@ -124,11 +135,14 @@ while($lastID <= $maxIDFinished) {
         $naz_zakl = mb_convert_encoding($zakl_arr->fields['NAZ'], 'UTF-8');
         $zakl_body = gzuncompress(base64_decode($zakl_arr->fields['concl_br']));
 
-        // $test_pdf = file_put_contents('test_pdf.pdf', $zakl_body);
+        if ($html) {
+            $zakl_body = mb_convert_encoding(base64_decode($zakl_arr->fields['concl_html']), 'UTF-8', 'UTF-8');
+        }
+        // $html = 
 
         $log_str = date('Y-m-d H:i:s').",ID:".$zakl_arr->fields['ID'].",KARTA:".$zakl_arr->fields['REGNUM'].",DATE_ZAKL:". $zakl_arr->fields['OKONCH_DT'].",ART:".$zakl_arr->fields['ARTIKUL'].",NAZ:".$naz_zakl." -> uploaded" . PHP_EOL;
 
-        $post_str = 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode(mb_substr(str_replace($replaced_chars, "_", $zakl_arr->fields['NAZ']), 0, $max_length_filename)).'.pdf'.'&DOC='.rawurlencode(base64_encode($zakl_body));
+        $post_str = 'KARTA='.$zakl_arr->fields['REGNUM'].'&DAT='.rawurlencode($zakl_arr->fields['OKONCH_DT']).'&NAME='.$zakl_arr->fields['ARTIKUL'].'.'.rawurlencode(mb_substr(str_replace($replaced_chars, "_", $zakl_arr->fields['NAZ']), 0, $max_length_filename)).$zakl_ext.'&DOC='.rawurlencode(base64_encode($zakl_body));
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
@@ -165,7 +179,11 @@ while($lastID <= $maxIDFinished) {
         sleep($delay_next);
         $lastID = $lastID + 1;
         rewind($iniHandle);
-        fwrite($iniHandle, "lastID=" . $lastID);
+        if ($storeID === true) {
+            fwrite($iniHandle, "lastID=" . $lastID);
+        } else {
+            fwrite($iniHandle, "lastID=" . $fixedID);
+        }
         fflush($iniHandle);
         $zakl_arr->MoveNext();
     }

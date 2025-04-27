@@ -18,3 +18,7 @@ Fix conclusions in Registry and upload conclusions to Eleks
 `php upload_zakl.php`
 ### Upload conclusions from start ro end ID
 `php upload_zakl.php -s 1001 -e 1002`
+### Upload 1 conclusion, only -s arg
+`php upload_zakl.php -s 1001`
+### Upload conclusion use by html full
+`php upload_zakl.php -s 1001 -h`
